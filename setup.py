@@ -258,83 +258,70 @@ Ce script va vous guider à travers les étapes d'installation.
             return False
 
     def install_gh_cli(self):
-        """Install GitHub CLI if not already installed."""
+        """Détecte GitHub CLI déjà installé ou propose une installation manuelle."""
         try:
             # Essayer d'exécuter gh pour voir s'il est déjà installé
             subprocess.run(["gh", "--version"], check=True, capture_output=True)
             print("GitHub CLI est déjà installé.")
-            return
+            return "gh"
         except (subprocess.CalledProcessError, FileNotFoundError):
             if self.platform == "windows":
-                # Chemin d'installation typique de GitHub CLI sur Windows
-                gh_install_path = os.path.expandvars("%ProgramFiles%\\GitHub CLI")
-                msi_url = "https://github.com/cli/cli/releases/download/v2.69.0/gh_2.69.0_windows_amd64.msi"
-                msi_file = os.path.join(self.temp_dir, "gh_cli.msi")
+                print("\n⚠️ GitHub CLI n'est pas détecté sur votre système.")
+                print("Veuillez l'installer manuellement en suivant ces étapes:")
+                print("1. Ouvrez un navigateur et visitez: https://cli.github.com/")
+                print("2. Téléchargez et installez GitHub CLI")
+                print("3. Après l'installation, redémarrez ce script ou votre terminal")
                 
-                # Téléchargement du MSI
-                print("Téléchargement en cours", msi_url)
-                success = self.download_file(msi_url, msi_file)
-                if not success:
-                    print("❌ Échec du téléchargement de GitHub CLI")
-                    return None
-                
-                # Vérification du hash (optionnel)
-                print("Le code de hachage de l'installation a été vérifié avec succès")
-                
-                # Installation du MSI
-                print("Démarrage du package d'installation... Merci de patienter.")
-                subprocess.run(["msiexec", "/i", msi_file, "/quiet", "/qn", "/norestart"], check=True)
-                print("Installé correctement")
-                
-                # Ajouter le chemin d'installation à PATH pour cette session
-                if os.path.exists(gh_install_path):
-                    os.environ["PATH"] = gh_install_path + os.pathsep + os.environ["PATH"]
-                    
-                    # Vérifier si gh.exe existe dans le répertoire d'installation
-                    gh_exe_path = os.path.join(gh_install_path, "gh.exe")
-                    if os.path.exists(gh_exe_path):
-                        print(f"GitHub CLI trouvé à {gh_exe_path}")
-                        return gh_exe_path
-                
-                # Rechercher gh.exe dans d'autres emplacements possibles
+                # Recherche gh.exe dans les emplacements courants
                 possible_locations = [
                     os.path.expandvars("%ProgramFiles%\\GitHub CLI"),
                     os.path.expandvars("%ProgramFiles(x86)%\\GitHub CLI"),
-                    os.path.expandvars("%LOCALAPPDATA%\\Programs\\GitHub CLI")
+                    os.path.expandvars("%LOCALAPPDATA%\\Programs\\GitHub CLI"),
+                    # Ajout d'emplacements courants d'installation de GitHub CLI
+                    "C:\\Program Files\\GitHub CLI",
+                    "C:\\Program Files (x86)\\GitHub CLI"
                 ]
                 
                 for location in possible_locations:
-                    gh_exe = os.path.join(location, "gh.exe")
-                    if os.path.exists(gh_exe):
-                        print(f"GitHub CLI trouvé à {gh_exe}")
-                        os.environ["PATH"] = location + os.pathsep + os.environ["PATH"]
-                        return gh_exe
+                    if os.path.exists(location):
+                        print(f"Recherche de GitHub CLI dans {location}...")
+                        gh_exe = os.path.join(location, "gh.exe")
+                        if os.path.exists(gh_exe):
+                            print(f"✅ GitHub CLI trouvé à {gh_exe}")
+                            # Ajouter le chemin à PATH pour cette session
+                            os.environ["PATH"] = location + os.pathsep + os.environ["PATH"]
+                            return gh_exe
                 
-                print("⚠️ GitHub CLI a été installé mais ne peut pas être trouvé dans le PATH.")
-                print("Vous devrez peut-être redémarrer votre session ou votre ordinateur pour l'utiliser.")
-                return None
+                # Aucune installation trouvée, demander à l'utilisateur
+                print("\nVoulez-vous continuer sans GitHub CLI? (y/n)")
+                choice = input("Si vous continuez, vous devrez configurer GitHub Actions manuellement: ")
+                if choice.lower() == 'y':
+                    return None
+                else:
+                    sys.exit(1)
             elif self.platform == "linux":
-                # Installation via apt pour les systèmes basés sur Debian
-                try:
-                    print("Installation de GitHub CLI via apt...")
-                    subprocess.run(["sudo", "apt", "update"], check=True)
-                    subprocess.run(["sudo", "apt", "install", "gh", "-y"], check=True)
-                    print("✅ GitHub CLI installé avec succès!")
-                    return "gh"
-                except subprocess.CalledProcessError:
-                    print("❌ Échec de l'installation via apt")
+                # Seulement montrer les instructions pour Linux
+                print("\n⚠️ GitHub CLI n'est pas détecté sur votre système Linux.")
+                print("Pour l'installer, exécutez les commandes suivantes dans un terminal:")
+                print("sudo apt update && sudo apt install gh -y")
+                
+                choice = input("Voulez-vous continuer sans GitHub CLI? (y/n): ")
+                if choice.lower() == 'y':
                     return None
+                else:
+                    sys.exit(1)
             elif self.platform == "darwin":  # macOS
-                try:
-                    print("Installation de GitHub CLI via brew...")
-                    subprocess.run(["brew", "install", "gh"], check=True)
-                    print("✅ GitHub CLI installé avec succès!")
-                    return "gh"
-                except subprocess.CalledProcessError:
-                    print("❌ Échec de l'installation via brew")
+                print("\n⚠️ GitHub CLI n'est pas détecté sur votre Mac.")
+                print("Pour l'installer, exécutez la commande suivante dans un terminal:")
+                print("brew install gh")
+                
+                choice = input("Voulez-vous continuer sans GitHub CLI? (y/n): ")
+                if choice.lower() == 'y':
                     return None
+                else:
+                    sys.exit(1)
             else:
-                print(f"❌ Système d'exploitation non pris en charge pour l'installation automatique de GitHub CLI: {self.platform}")
+                print(f"❌ Système d'exploitation non pris en charge: {self.platform}")
                 return None
 
     def github_login(self):
@@ -398,24 +385,46 @@ Ce script va vous guider à travers les étapes d'installation.
                 sys.exit(1)
 
     def setup_github_actions(self):
+        """Configure GitHub Actions."""
         if self.mode != 3:
             print("\n[4/5] Mode GitHub Actions non sélectionné - Étape ignorée.")
             return
+            
+        print("\n[4/5] Configuration de GitHub Actions...")
         
-        # Installation de GitHub CLI
+        # Recherche de GitHub CLI
         gh_path = self.install_gh_cli()
         
-        # Si gh_path est None, la commande gh n'est pas disponible
+        # Si gh_path est None, proposer une configuration manuelle
         if gh_path is None:
-            print("⚠️ GitHub CLI n'est pas disponible. Configuration manuelle de GitHub Actions requise.")
+            print("\n⚠️ GitHub CLI n'est pas disponible. Configuration manuelle de GitHub Actions requise.")
             print("Instructions de configuration manuelle:")
-            print("1. Ouvrez votre navigateur et allez sur https://github.com/votre-nom/votre-repo")
+            print("1. Ouvrez votre navigateur et allez sur https://github.com/votre-nom/CyCalendar")
             print("2. Allez dans 'Settings' > 'Secrets and variables' > 'Actions'")
-            print("3. Ajoutez les secrets nécessaires pour votre workflow")
+            print("3. Ajoutez les secrets suivants:")
+            print("   - CY_USERNAME: Votre identifiant CY Tech")
+            print("   - CY_PASSWORD: Votre mot de passe CY Tech")
+            print("   - GOOGLE_CREDENTIALS: Le contenu du fichier client_secret_*.json")
+            print("   - GOOGLE_TOKEN: Le contenu encodé en base64 du fichier token.pickle")
+            print("   - WORKFLOW_PAT: Un token d'accès personnel GitHub avec les permissions nécessaires")
+            
+            # Demander si l'utilisateur veut créer un PAT pour configurer manuellement
+            print("\nSouhaitez-vous créer un token d'accès personnel GitHub pour la configuration manuelle? (y/n)")
+            choice = input("Cela ouvrira la page de création de token dans votre navigateur: ")
+            if choice.lower() == 'y':
+                print("\nOuverture de la page de création de token...")
+                webbrowser.open("https://github.com/settings/tokens/new")
+                print("Assurez-vous de configurer les permissions suivantes:")
+                print("- repo (tous les sous-éléments)")
+                print("- workflow")
+                
+            # Demander si l'utilisateur veut extraire les informations pour la configuration manuelle
+            print("\nSouhaitez-vous extraire les valeurs des secrets pour faciliter la configuration manuelle? (y/n)")
+            choice = input("Cela affichera votre nom d'utilisateur et les chemins des fichiers: ")
+            if choice.lower() == 'y':
+                self.print_secret_values_for_manual_setup()
+                
             return
-        
-        # Utiliser le chemin absolu vers gh si disponible
-        gh_cmd = gh_path if gh_path else "gh"
         
         # Connexion à GitHub
         gh_token = self.github_login()
@@ -478,13 +487,13 @@ Ce script va vous guider à travers les étapes d'installation.
 
             for secret_name, secret_value in secrets.items():
                 print(f"Ajout du secret {secret_name}...")
-                subprocess.run([gh_cmd, "secret", "set", secret_name, "-b", secret_value], check=True)
+                subprocess.run(["gh", "secret", "set", secret_name, "-b", secret_value], check=True)
                 print(f"✅ Secret {secret_name} ajouté avec succès!")
 
             # Liste et activation du workflow
             print("\nRécupération de la liste des workflows...")
             try:
-                result = subprocess.run([gh_cmd, "workflow", "list"], capture_output=True, text=True, check=True)
+                result = subprocess.run(["gh", "workflow", "list"], capture_output=True, text=True, check=True)
                 print(result.stdout)
 
                 # Extraction de l'ID du workflow
@@ -496,12 +505,12 @@ Ce script va vous guider à travers les étapes d'installation.
                     
                     # Activation du workflow
                     print("\nActivation du workflow...")
-                    subprocess.run([gh_cmd, "workflow", "enable", workflow_id], check=True)
+                    subprocess.run(["gh", "workflow", "enable", workflow_id], check=True)
                     print("✅ Workflow GitHub Actions activé!")
                     
                     # Lancement du workflow
                     print("\nLancement du workflow...")
-                    subprocess.run([gh_cmd, "workflow", "run", workflow_id], check=True)
+                    subprocess.run(["gh", "workflow", "run", workflow_id], check=True)
                     print("✅ Workflow lancé!")
                 else:
                     raise ValueError("Workflow 'Update Google Calendar' non trouvé")
@@ -528,6 +537,35 @@ Ce script va vous guider à travers les étapes d'installation.
             print(f"❌ Une erreur s'est produite: {e}")
             print("Veuillez résoudre l'erreur affichée ou ajouter les secrets manuellement dans les paramètres de votre repo GitHub")
             sys.exit(1)
+
+    def print_secret_values_for_manual_setup(self):
+        """Affiche les valeurs des secrets pour une configuration manuelle."""
+        try:
+            # Récupérer les informations d'identification CY Tech du fichier .env
+            if os.path.exists(self.env_path):
+                with open(self.env_path, 'r') as f:
+                    env_content = f.read()
+                    cy_username = env_content.split('CY_USERNAME=')[1].split('\n')[0] if 'CY_USERNAME=' in env_content else "Non trouvé"
+                    print(f"\nCY_USERNAME: {cy_username}")
+                    print("CY_PASSWORD: [Votre mot de passe]")
+            
+            # Récupérer les chemins des fichiers de credentials Google
+            credentials_files = list(self.google_dir.glob('client_secret_*.apps.googleusercontent.com.json'))
+            if credentials_files:
+                print(f"\nGOOGLE_CREDENTIALS: [Contenu du fichier {credentials_files[0]}]")
+                print(f"Pour obtenir le contenu: ouvrez le fichier {credentials_files[0]} et copiez tout son contenu")
+            
+            token_path = self.google_dir / "token.pickle"
+            if os.path.exists(token_path):
+                print(f"\nGOOGLE_TOKEN: [Token encodé en base64]")
+                print(f"Pour l'obtenir, exécutez la commande suivante dans un terminal Python:")
+                print(f"import base64; print(base64.b64encode(open('{token_path}', 'rb').read()).decode('utf-8'))")
+            
+            print("\nWORKFLOW_PAT: [Votre token d'accès personnel GitHub]")
+            print("Créez-en un sur: https://github.com/settings/tokens/new")
+            
+        except Exception as e:
+            print(f"❌ Erreur lors de l'extraction des valeurs des secrets: {e}")
 
     def run(self):
         try:
