@@ -5,10 +5,9 @@ import getpass
 import base64
 import time
 import shutil
-import random
+import os
 import webbrowser
 from pathlib import Path
-from urllib.parse import urlparse
 
 class CyCalendarInstaller:
     def __init__(self):
@@ -127,50 +126,45 @@ Ce script va vous guider à travers les étapes d'installation.
                 return True
         
         print("\nConfiguration automatique avec redirections...")
-        print("Plusieurs pages vont s'ouvrir, suivez les instructions sur le terminal afin de compléter la configuration google.")
+        print("Plusieurs pages vont s'ouvrir automatiquement, suivez les instructions à l'écran pour configurer Google API.")
 
-        print("\nOuverture de https://console.cloud.google.com/ ...")
-        print("Sur cette page il vous suffit de créer un projet avec le nom que vous voulez. (Connectez vous au compte google que vous souhaitez utiliser)")
-        time.sleep(2)        
-        webbrowser.open("https://console.cloud.google.com/")
-        
-        input("\nAppuyez sur Entrée une fois que le projet est créé et a fini de charger...")
+        # Ouverture des pages nécessaires à la configuration
+        pages = [
+            {
+                "url": "https://console.cloud.google.com/",
+                "message": "Créez un nouveau projet avec le nom de votre choix. (connexion avec votre compte Google)",
+                "delay": 8
+            },
+            {
+                "url": "https://console.cloud.google.com/marketplace/product/google/calendar-json.googleapis.com",
+                "message": "Activez l'API Google Calendar en cliquant sur 'Activer'",
+                "delay": 5
+            },
+            {
+                "url": "https://console.cloud.google.com/auth/overview",
+                "message": "Configurez l'écran de consentement: Nom: cycalendar, Audience: externe, emails: votre email",
+                "delay": 5
+            },
+            {
+                "url": "https://console.cloud.google.com/auth/audience",
+                "message": "Ajoutez votre adresse email comme utilisateur test (ADD USERS)",
+                "delay": 5
+            },
+            {
+                "url": "https://console.cloud.google.com/auth/clients/create",
+                "message": "Créez une application de bureau et téléchargez le JSON des credentials",
+                "delay": 5
+            }
+        ]
 
-        print("\nOuverture de https://console.cloud.google.com/marketplace/product/google/calendar-json.googleapis.com ...")
-        print("Sur cette page, cliquez sur le bouton 'Activer' pour activer l'API Google Calendar.")
-        time.sleep(2)
-        webbrowser.open("https://console.cloud.google.com/marketplace/product/google/calendar-json.googleapis.com")
+        for page in pages:
+            print(f"\n{page['message']}")
+            webbrowser.open(page["url"])
+            time.sleep(page["delay"])  # Attente automatique entre chaque page
 
-        input("\nAppuyez sur Entrée une fois que l'API Google Calendar est activée et a fini de charger...")
-
-        print("\nOuverture de https://console.cloud.google.com/auth/overview ...")
-        print("Sur cette page, cliquez sur le bouton premiers pas puis complétez comme suit :")
-        print("-> Nom d'application : cycalendar et mettez votre adresse mail en adresse d'assistance")
-        print("-> Cible : externe")
-        print("-> Coordonées : votre adresse mail")
-        print("-> Acceptez puis créer")
-        time.sleep(2)
-        webbrowser.open("https://console.cloud.google.com/auth/overview")
-
-        input("\nAppuyez sur Entrée une fois que la page Présentation d'OAuth a fini de charger...")
-
-        print("\nOuverture de https://console.cloud.google.com/auth/audience ...")
-        print("Sur cette page, sous utilisateurs tests cliquez sur ADD USERS, entrez votre adresse mail et cliquez sur Enregistrer.")
-        time.sleep(2)
-        webbrowser.open("https://console.cloud.google.com/auth/audience")
-
-        input("\nAppuyez sur Entrée une fois que vous avez ajouté votre adresse mail...")
-
-        print("\nOuverture de https://console.cloud.google.com/auth/clients/create ...")
-        print("Sur cette page, choisissez application de bureau pour le type et mettez le nom que vous souhaitez puis cliquez sur créer")
-        time.sleep(2)
-        webbrowser.open("https://console.cloud.google.com/auth/clients/create")
-
-        input("\nAppuyez sur Entrée une fois que le client OAuth 2.0 a été créé et a fini de charger...")
-
-        print("\nIl ne vous reste plus qu'à cliquer sur l'icone de téléchargement tout à droite de votre clé créée, puis sur télécharger au format json.")       
-        
-        input("\nAppuyez sur Entrée une fois que le fichier de credentials a été téléchargé...")
+        print("\nTéléchargez le fichier JSON en cliquant sur l'icône de téléchargement (à droite de votre client OAuth)")
+        print("Attendez 30 secondes pendant que vous téléchargez le fichier...")
+        time.sleep(30)  # Attente pour le téléchargement
 
         # Try to find the credentials file in common Downloads locations
         possible_paths = [
@@ -182,27 +176,39 @@ Ce script va vous guider à travers les étapes d'installation.
             Path("/data/Téléchargements")
         ]
         
-        credentials_files = []
-        for path in possible_paths:
-            if path.exists():
-                credentials_files.extend(list(path.glob('client_secret_*.apps.googleusercontent.com.json')))
+        # Tentatives répétées pour trouver le fichier téléchargé
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            credentials_files = []
+            for path in possible_paths:
+                if path.exists():
+                    credentials_files.extend(list(path.glob('client_secret_*.apps.googleusercontent.com.json')))
 
-        if credentials_files:
-            latest_file = max(credentials_files, key=lambda x: x.stat().st_mtime)
-            print(f"\nFichier de credentials trouvé dans vos téléchargements: {latest_file}")
-            choice = input("Est ce le bon ? (y/n): ")
-            if choice.lower() == 'y':
+            if credentials_files:
+                latest_file = max(credentials_files, key=lambda x: x.stat().st_mtime)
+                print(f"\nFichier de credentials trouvé automatiquement: {latest_file}")
+                
                 try:
-                    # Try to use project directory first
+                    # Création automatique du dossier google
                     self.google_dir.mkdir(exist_ok=True)
                     shutil.copy2(latest_file, self.google_dir)
                     self.credentials_path = self.google_dir / latest_file.name
+                    print(f"✅ Fichier copié dans {self.google_dir}")
+                    break
                 except PermissionError:
-                    print(f"\n❌ Permission refusée pour copier le fichier de credentials de {latest_file} vers {self.google_dir}, veuillez le faire manuellement sans changer le nom ni le contenu.")
-                    input("\nAppuyez sur Entrée une fois que vous avez copié le fichier...")
-                    self.credentials_path = self.google_dir / latest_file
+                    print(f"\n❌ Permission refusée pour copier le fichier de credentials.")
+                    manual_path = input("Veuillez entrer manuellement le chemin du fichier: ")
+                    self.credentials_path = Path(manual_path)
+                    if self.credentials_path.exists():
+                        shutil.copy(self.credentials_path, self.google_dir)
+                        self.credentials_path = self.google_dir / self.credentials_path.name
+                        break
+            
+            if attempt < max_attempts - 1:
+                print(f"Fichier non trouvé, nouvelle tentative dans 10 secondes... ({attempt+1}/{max_attempts})")
+                time.sleep(10)
 
-        # If not found automatically or user declined, ask for manual path
+        # Si le fichier n'a pas été trouvé automatiquement, demander le chemin
         if not self.credentials_path:
             while True:
                 manual_path = Path(input("Entrez le chemin du fichier de credentials téléchargé: "))
@@ -284,31 +290,43 @@ Ce script va vous guider à travers les étapes d'installation.
             sys.exit(1)
 
     def select_repo(self):
-        while(True):
-            try:
-                repos = subprocess.run(["gh", "repo", "list", "--limit", "100"], 
-                                    capture_output=True, 
-                                    text=True, 
-                                    check=True).stdout.strip().split('\n')
-                
-                print("\nVos dépôts GitHub :")
-                print(f"0. Je n'ai pas encore fork le repo CyCalendar et donc je ne le vois pas dans les options")
-                for i, repo in enumerate(repos, 1):
-                    print(f"{i}. {repo}")
-                
-                choice = input("Sélectionnez votre fork de CyCalendar (ou 0 si vous ne l'avez pas encore fork) : ")
-
-                if(choice == 0):
-                    subprocess.run(["gh", "repo", "fork", "NayJi7/CyCalendar", f"--clone-directory={Path.home}"], check=True)
-                    print("✅ Fork de CyCalendar effectué avec succès!")
-                    break
-                
-                # Sélectionner un repo existant
-                selected_repo = repos[int(choice) - 1].split()[0]
-                return selected_repo
+        try:
+            repos = subprocess.run(["gh", "repo", "list", "--limit", "100"], 
+                                capture_output=True, 
+                                text=True, 
+                                check=True).stdout.strip().split('\n')
             
-            except subprocess.CalledProcessError:
-                print("❌ Impossible de récupérer la liste des dépôts.")
+            print("\nVos dépôts GitHub :")
+            print(f"0. Je n'ai pas encore fork le repo CyCalendar")
+            for i, repo in enumerate(repos, 1):
+                print(f"{i}. {repo}")
+            
+            choice = input("Sélectionnez votre fork de CyCalendar (ou 0 pour fork automatique) : ")
+            
+            if choice == "0":
+                print("Fork automatique du repo CyCalendar...")
+                subprocess.run(["gh", "repo", "fork", "NayJi7/CyCalendar", "--clone=false"], check=True)
+                print("✅ Fork de CyCalendar effectué avec succès!")
+                # Après le fork, récupérer le nom du repo forké
+                username = subprocess.run(["gh", "api", "user", "-q", ".login"], 
+                                      capture_output=True, text=True, check=True).stdout.strip()
+                return f"{username}/CyCalendar"
+            
+            # Sélectionner un repo existant
+            selected_repo = repos[int(choice) - 1].split()[0]
+            return selected_repo
+            
+        except subprocess.CalledProcessError:
+            print("❌ Impossible de récupérer la liste des dépôts.")
+            print("Tentative de fork automatique...")
+            try:
+                subprocess.run(["gh", "repo", "fork", "NayJi7/CyCalendar", "--clone=false"], check=True)
+                print("✅ Fork de CyCalendar effectué avec succès!")
+                username = subprocess.run(["gh", "api", "user", "-q", ".login"], 
+                                      capture_output=True, text=True, check=True).stdout.strip()
+                return f"{username}/CyCalendar"
+            except:
+                print("❌ Échec du fork automatique.")
                 sys.exit(1)
 
     def setup_github_actions(self):
@@ -328,11 +346,11 @@ Ce script va vous guider à travers les étapes d'installation.
             with open(self.env_path, 'a') as env_file:
                 env_file.write(f"WORKFLOW_PAT={gh_token}\n")
             print("✅ Token GitHub ajouté au fichier .env")
+            
+            # Mise à jour de la variable d'environnement pour cette session
+            os.environ["WORKFLOW_PAT"] = gh_token
         except Exception as e:
             print(f"⚠️ Erreur lors de l'ajout du token au fichier .env: {e}")
-        
-        # Mise à jour de la variable d'environnement pour cette session
-        os.environ["WORKFLOW_PAT"] = gh_token
         
         # Sélection ou création du dépôt
         repo_name = self.select_repo()
@@ -355,18 +373,15 @@ Ce script va vous guider à travers les étapes d'installation.
             with open(credentials_files[0], 'r') as f:
                 google_credentials = f.read()
 
-            google_token = None
-            while(google_token == None):
-                try:
-                    # Lecture du token Google
-                    with open(self.google_dir / "token.pickle", 'rb') as f:
-                        google_token = base64.b64encode(f.read()).decode('utf-8')
-                except FileNotFoundError:
-                    print("Fichier de token Google non généré.")
-                    print("Execution de cyCalendar.py pour générer le token...")
-                    print("Veuillez suivre les instructions affichées.")
-                    time.sleep(3)
-                    subprocess.run([sys.executable, "cyCalendar.py"], check=True)
+            # Génération automatique du token Google si nécessaire
+            if not os.path.exists(self.google_dir / "token.pickle"):
+                print("Génération automatique du token Google...")
+                subprocess.run([sys.executable, "cyCalendar.py", "--no-browser"], check=True)
+                print("✅ Token Google généré avec succès")
+
+            # Lecture du token Google
+            with open(self.google_dir / "token.pickle", 'rb') as f:
+                google_token = base64.b64encode(f.read()).decode('utf-8')
 
             # Ajout des secrets
             print("\nConfiguration des secrets GitHub...")
