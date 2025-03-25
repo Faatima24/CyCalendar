@@ -8,6 +8,54 @@ import os.path
 import pickle
 import glob
 import html
+import base64
+import subprocess
+
+# Dictionary for agenda colors
+# Equivalence in ../google/google_calendar_colors.png (Modern colors)
+calendar_colors = {
+    "Cocoa": 1, 
+    "Flamingo": 2,
+    "Tomato": 3,
+    "Tangerine": 4,
+    "Pumpkin": 5,
+    "Mango": 6,
+    "Eucalyptus": 7,
+    "Basil": 8,
+    "Pistachio": 9,
+    "Avocado": 10,
+    "Citron": 11,
+    "Banana": 12,
+    "Sage": 13,
+    "Peacock": 14,
+    "Cobalt": 15,
+    "Blueberry": 16,
+    "Lavender": 17,
+    "Wisteria": 18,
+    "Graphite": 19,
+    "Birch": 20,
+    "Radicchio": 21,
+    "CherryBlossom": 22,
+    "Grape": 23,
+    "Amethyst": 24
+}
+
+# Dictionary for event colors
+# Equivalence in ../google/google_event_colors.png (Modern colors)
+event_colors = {
+    "Lavender": 1,
+    "Sage": 2,
+    "Grape": 3,
+    "Flamingo": 4,
+    "Banana": 5,
+    "Tangerine": 6,
+    "Peacock": 7,
+    "Graphite": 8,
+    "Blueberry": 9,
+    "Basil": 10,
+    "Tomato": 11
+    # None is calendar color
+}
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 CALENDAR_NAME = "Cours CY"
@@ -40,6 +88,11 @@ def get_google_credentials():
         if creds and creds.expired and creds.refresh_token:
             try:
                 creds.refresh(Request())
+                # Sauvegarder les credentials mis à jour
+                with open(TOKEN_PATH, 'wb') as token:
+                    pickle.dump(creds, token)
+                # Pousser le token mis à jour vers GitHub si nous sommes en environnement CI
+                update_github_token()
             except Exception as e:
                 print("Erreur lors du rafraîchissement du token:", str(e))
                 os.remove(TOKEN_PATH)  # Supprimer le token invalide
@@ -56,6 +109,7 @@ def get_google_credentials():
                     prompt='consent',
                     access_type='offline'
                 )
+                
             except Exception as e:
                 print("\nErreur d'authentification Google:")
                 print("1. Vérifiez que votre compte est ajouté comme testeur dans la console Google Cloud")
@@ -69,7 +123,50 @@ def get_google_credentials():
         with open(TOKEN_PATH, 'wb') as token:
             pickle.dump(creds, token)
             
+        # Pousser le token mis à jour vers GitHub si nous sommes en environnement CI
+        update_github_token()
+            
     return creds
+
+def update_github_token():
+    """
+    Met à jour le secret GitHub avec le nouveau token si GitHub CLI est disponible
+    """
+    try:
+        # Vérifier si nous avons un token d'authentification GitHub en variable d'environnement
+        # Ce token devrait être défini lors de l'installation ou via le fichier .env
+        workflow_pat = os.environ.get("WORKFLOW_PAT")
+        
+        if workflow_pat:
+            print("Mise à jour du token Google dans les secrets GitHub...")
+            
+            # Lire le token
+            with open(TOKEN_PATH, 'rb') as f:
+                token_data = f.read()
+                encoded_token = base64.b64encode(token_data).decode('utf-8')
+            
+            # Authentification avec GitHub CLI
+            print("Authentification avec GitHub CLI...")
+            result = subprocess.run(
+                ["gh", "auth", "login", "--with-token"],
+                input=workflow_pat.encode(),
+                capture_output=True
+            )
+            
+            if result.returncode == 0:
+                # Mettre à jour le secret
+                print("Mise à jour du secret GOOGLE_TOKEN...")
+                subprocess.run(
+                    ["gh", "secret", "set", "GOOGLE_TOKEN", "-b", encoded_token],
+                    check=True
+                )
+                print("✅ Token Google mis à jour dans les secrets GitHub")
+            else:
+                print("⚠️ Échec de l'authentification GitHub, impossible de mettre à jour le token")
+                print(f"Erreur: {result.stderr.decode()}")
+    except Exception as e:
+        print(f"⚠️ Impossible de mettre à jour le token GitHub: {e}")
+        # Ne pas bloquer le processus principal en cas d'erreur
 
 def find_or_create_calendar(service):
     """

@@ -80,7 +80,7 @@ jobs:
         if: success()
         run: |
           echo "Mise à jour du planning d'exécution..."
-          python3 -u src/update_schedule.py
+          python3 -u src/update_schedule.py 
 
       - name: Commit and push updated workflow
         if: success()

@@ -21,7 +21,7 @@ CyCalendar est un outil qui synchronise automatiquement votre emploi du temps CY
 - Un compte Google avec accès à l'API Google Calendar
 - Des identifiants OAuth2 Google (fichier `client_secret_*.json`)
 
-   Des erreurs sont susceptibles d'arriver et pourtant de ne pas gêner l'execution du programme. Vérifiez par vous même le fonctionnement ou non du programme.
+  Des erreurs sont susceptibles d'arriver et pourtant de ne pas gêner l'execution du programme. Vérifiez par vous même le fonctionnement ou non du programme.
 
 ### Prérequis
 
@@ -37,7 +37,7 @@ CyCalendar est un outil qui synchronise automatiquement votre emploi du temps CY
 
 ### Installation assistée
 
-En suivant les étapes du setup.py que j'ai créé vous pouvez mettre en place l'installation de ce service de manière plus ou moins automatique. Certaines actions seront à faire par vos soins, j'ai automatisé ça du mieux que j'ai pu. (Le setup.py vous laisse choisir le mode désiré, vous pouvez faire une installation du mode manuel avec). Les étapes du setup.py et de l'installation diffèrent sur certains points puisque j'automatise certain aspects (pas besoin de vous embêter avec les explications dans ce cas).			
+En suivant les étapes du setup.py que j'ai créé vous pouvez mettre en place l'installation de ce service de manière plus ou moins automatique. Certaines actions seront à faire par vos soins, j'ai automatisé ça du mieux que j'ai pu. (Le setup.py vous laisse choisir le mode désiré, vous pouvez faire une installation du mode manuel avec). Les étapes du setup.py et de l'installation diffèrent sur certains points puisque j'automatise certain aspects (pas besoin de vous embêter avec les explications dans ce cas).
 
 ### Installation manuelle
 
@@ -58,13 +58,13 @@ Cette catégorie n'est pas utile si vous avez choisi l'utilisation du setup.py p
 ##### Pour tous les systèmes :
 
 2. Créer un fichier nommé '.env' à la racine du projet contenant ces informations :
+3. Clonez ce dépôt
+4. Installez les dépendances :
 
-1. Clonez ce dépôt
-2. Installez les dépendances :
    ```bash
    pip install -r requirements.txt
    ```
-3. Placez votre fichier d'identifiants OAuth2 Google (`client_secret_*.json`) dans le dossier `google/`
+5. Placez votre fichier d'identifiants OAuth2 Google (`client_secret_*.json`) dans le dossier `google/`
 
 ## Utilisation
 
@@ -74,6 +74,14 @@ Cette catégorie n'est pas utile si vous avez choisi l'utilisation du setup.py p
    ```
 2. Suivez les étapes d'authentification CY Tech
 3. Le programme créera automatiquement un calendrier "Cours CY" dans votre Google Calendar et y importera vos cours
+
+## Problèmes possibles
+
+Le seul token pouvant expirer est le GOOGLE_TOKEN que nous avons générés ensembles. Si celui ci expire vous aurez cette erreur sur github actions :
+
+![1742893329665](image/README/1742893329665.png)
+
+Puisque le programme attend que vous mettiez le token à jour. Cela ne sert à rien de cliquer sur le lien sur github actions, ça fonctionne avec du localhost. La solution est de lancer cyCalendar.py en local ``python3 cyCalendar.py``. Une fenêtre google s'ouvrira, choisissez votre compte puis cliquez sur continuer 2 fois. Ceci re-génèrera votre token et le mettra à jour automatiquement sur github.
 
 ## Structure des dossiers
 

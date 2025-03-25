@@ -322,6 +322,18 @@ Ce script va vous guider à travers les étapes d'installation.
         # Connexion à GitHub
         gh_token = self.github_login()
         
+        # Ajouter le token au fichier .env pour une utilisation future
+        print("Sauvegarde du token GitHub dans le fichier .env...")
+        try:
+            with open(self.env_path, 'a') as env_file:
+                env_file.write(f"WORKFLOW_PAT={gh_token}\n")
+            print("✅ Token GitHub ajouté au fichier .env")
+        except Exception as e:
+            print(f"⚠️ Erreur lors de l'ajout du token au fichier .env: {e}")
+        
+        # Mise à jour de la variable d'environnement pour cette session
+        os.environ["WORKFLOW_PAT"] = gh_token
+        
         # Sélection ou création du dépôt
         repo_name = self.select_repo()
         
