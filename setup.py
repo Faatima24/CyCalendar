@@ -337,6 +337,7 @@ Ce script va vous guider à travers les étapes d'installation.
             print("\nOuverture de la page de création de token...")
             print("Créez le token en suivant ces instructions :")
             print("- Nom : Votre choix")
+            print("- Repository : Cochez ")
             print("- Expiration : Jamais ou selon vos préférences (l'app ne marchera plus après l'expiration)")
             print("- Permissions : sous Repository cochez (en read/write) Actions, Contents, Pull Requests, Secrets et Workflows")
             print("Puis cliquez sur Generate token et copiez le token généré.")
@@ -357,32 +358,110 @@ Ce script va vous guider à travers les étapes d'installation.
             sys.exit(1)
 
     def select_repo(self):
-        while(True):
+        while True:
             try:
+                # Vérifier si un fork existe déjà
                 repos = subprocess.run(["gh", "repo", "list", "--limit", "100"], 
                                     capture_output=True, 
                                     text=True, 
                                     check=True).stdout.strip().split('\n')
                 
+                # Vérifier si CyCalendar est déjà forké
+                cy_repos = [repo for repo in repos if "CyCalendar" in repo]
+                
                 print("\nVos dépôts GitHub :")
                 print(f"0. Je n'ai pas encore fork le repo CyCalendar et donc je ne le vois pas dans les options")
-                for i, repo in enumerate(repos, 1):
-                    print(f"{i}. {repo}")
                 
-                choice = input("Sélectionnez votre fork de CyCalendar (ou 0 si vous ne l'avez pas encore fork) : ")
-
-                if(choice == 0):
-                    subprocess.run(["gh", "repo", "fork", "NayJi7/CyCalendar", f"--clone-directory={Path.home}"], check=True)
+                if cy_repos:
+                    print("Dépôts CyCalendar existants :")
+                    for i, repo in enumerate(cy_repos, 1):
+                        print(f"{i}. {repo} [RECOMMANDÉ]")
+                    
+                print("\nAutres dépôts :")
+                for i, repo in enumerate(repos, len(cy_repos) + 1):
+                    if repo not in cy_repos:
+                        print(f"{i}. {repo}")
+                
+                choice = input("\nSélectionnez votre fork de CyCalendar (ou 0 pour en créer un nouveau) : ")
+                
+                if choice == "0":
+                    print("\nCréation d'un fork du dépôt CyCalendar...")
+                    fork_result = subprocess.run(
+                        ["gh", "repo", "fork", "NayJi7/CyCalendar", "--clone=false"],
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    )
+                    
                     print("✅ Fork de CyCalendar effectué avec succès!")
-                    break
+                    
+                    # Extraire le nom du nouveau fork à partir des résultats
+                    for line in fork_result.stdout.splitlines():
+                        if "Created fork" in line:
+                            parts = line.split()
+                            for part in parts:
+                                if "/" in part and "CyCalendar" in part:
+                                    return part.strip()
+                    
+                    # Si on ne peut pas extraire le nom automatiquement, récupérer la liste mise à jour
+                    print("Récupération de la liste mise à jour des dépôts...")
+                    updated_repos = subprocess.run(
+                        ["gh", "repo", "list", "--limit", "100"],
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    ).stdout.strip().split('\n')
+                    
+                    for repo in updated_repos:
+                        if "CyCalendar" in repo:
+                            return repo.split()[0]  # Premier élément (nom du repo)
+                    
+                    # Vérification alternative avec le nom d'utilisateur
+                    username_result = subprocess.run(
+                        ["gh", "api", "user", "-q", ".login"],
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    )
+                    username = username_result.stdout.strip()
+                    
+                    if username:
+                        print(f"Fork créé sous: {username}/CyCalendar")
+                        return f"{username}/CyCalendar"
+                        
+                    raise ValueError("Impossible de déterminer le nom du dépôt forké")
                 
                 # Sélectionner un repo existant
-                selected_repo = repos[int(choice) - 1].split()[0]
+                choice = int(choice)
+                if 1 <= choice <= len(cy_repos):
+                    # Sélection d'un dépôt CyCalendar
+                    selected_repo = cy_repos[choice - 1].split()[0]
+                else:
+                    # Sélection d'un autre dépôt
+                    index = choice - len(cy_repos) - 1
+                    if 0 <= index < len(repos):
+                        selected_repo = repos[index].split()[0]
+                    else:
+                        print("❌ Choix invalide.")
+                        continue
+                
+                print(f"Dépôt sélectionné: {selected_repo}")
                 return selected_repo
             
-            except subprocess.CalledProcessError:
-                print("❌ Impossible de récupérer la liste des dépôts.")
-                sys.exit(1)
+            except subprocess.CalledProcessError as e:
+                print(f"❌ Erreur lors de l'accès aux dépôts: {e}")
+                print(f"Détails: {e.stderr}")
+                
+                # Proposer de créer manuellement un fork
+                print("\nImpossible de lister ou créer un fork automatiquement.")
+                print("Veuillez vous rendre sur https://github.com/NayJi7/CyCalendar et cliquer sur 'Fork'.")
+                
+                manual_fork = input("\nAvez-vous créé manuellement un fork? (y/n): ")
+                if manual_fork.lower() == 'y':
+                    username = input("Entrez votre nom d'utilisateur GitHub: ")
+                    return f"{username}/CyCalendar"
+                else:
+                    sys.exit(1)
 
     def setup_github_actions(self):
         """Configure GitHub Actions."""
@@ -408,23 +487,12 @@ Ce script va vous guider à travers les étapes d'installation.
             print("   - GOOGLE_TOKEN: Le contenu encodé en base64 du fichier token.pickle")
             print("   - WORKFLOW_PAT: Un token d'accès personnel GitHub avec les permissions nécessaires")
             
-            # Demander si l'utilisateur veut créer un PAT pour configurer manuellement
-            print("\nSouhaitez-vous créer un token d'accès personnel GitHub pour la configuration manuelle? (y/n)")
-            choice = input("Cela ouvrira la page de création de token dans votre navigateur: ")
-            if choice.lower() == 'y':
-                print("\nOuverture de la page de création de token...")
-                webbrowser.open("https://github.com/settings/tokens/new")
-                print("Assurez-vous de configurer les permissions suivantes:")
-                print("- repo (tous les sous-éléments)")
-                print("- workflow")
-                
-            # Demander si l'utilisateur veut extraire les informations pour la configuration manuelle
-            print("\nSouhaitez-vous extraire les valeurs des secrets pour faciliter la configuration manuelle? (y/n)")
-            choice = input("Cela affichera votre nom d'utilisateur et les chemins des fichiers: ")
-            if choice.lower() == 'y':
-                self.print_secret_values_for_manual_setup()
-                
+            # Autres instructions pour la configuration manuelle...
+            self.print_secret_values_for_manual_setup()
             return
+        
+        # Utiliser le chemin absolu vers gh si disponible
+        gh_cmd = gh_path if os.path.isfile(gh_path) else "gh"
         
         # Connexion à GitHub
         gh_token = self.github_login()
@@ -444,9 +512,19 @@ Ce script va vous guider à travers les étapes d'installation.
         # Sélection ou création du dépôt
         repo_name = self.select_repo()
         
-        print("\n[4/5] Configuration de GitHub Actions...")
+        print(f"\nConfiguration des actions pour le dépôt {repo_name}...")
         
         try:
+            # Vérifier si le dépôt existe et est accessible
+            try:
+                subprocess.run([gh_cmd, "repo", "view", repo_name], 
+                              capture_output=True, check=True)
+                print(f"✅ Dépôt {repo_name} accessible")
+            except subprocess.CalledProcessError:
+                print(f"❌ Impossible d'accéder au dépôt {repo_name}")
+                print("Veuillez vérifier si le dépôt existe et si vous avez les permissions nécessaires.")
+                return
+            
             # Préparation des secrets
             with open(self.env_path, 'r') as f:
                 env_content = f.read()
@@ -463,7 +541,7 @@ Ce script va vous guider à travers les étapes d'installation.
                 google_credentials = f.read()
 
             google_token = None
-            while(google_token == None):
+            while google_token == None:
                 try:
                     # Lecture du token Google
                     with open(self.google_dir / "token.pickle", 'rb') as f:
@@ -475,8 +553,8 @@ Ce script va vous guider à travers les étapes d'installation.
                     time.sleep(3)
                     subprocess.run([sys.executable, "cyCalendar.py"], check=True)
 
-            # Ajout des secrets
-            print("\nConfiguration des secrets GitHub...")
+            # Ajout des secrets - avec spécification explicite du repo
+            print("\nConfiguration des secrets GitHub pour le dépôt", repo_name)
             secrets = {
                 'CY_USERNAME': cy_username,
                 'CY_PASSWORD': cy_password,
@@ -487,13 +565,15 @@ Ce script va vous guider à travers les étapes d'installation.
 
             for secret_name, secret_value in secrets.items():
                 print(f"Ajout du secret {secret_name}...")
-                subprocess.run(["gh", "secret", "set", secret_name, "-b", secret_value], check=True)
+                # Utiliser -R pour spécifier explicitement le dépôt
+                subprocess.run([gh_cmd, "secret", "set", secret_name, "-R", repo_name, "-b", secret_value], check=True)
                 print(f"✅ Secret {secret_name} ajouté avec succès!")
 
-            # Liste et activation du workflow
+            # Liste et activation du workflow avec spécification du dépôt
             print("\nRécupération de la liste des workflows...")
             try:
-                result = subprocess.run(["gh", "workflow", "list"], capture_output=True, text=True, check=True)
+                result = subprocess.run([gh_cmd, "workflow", "list", "-R", repo_name], 
+                                       capture_output=True, text=True, check=True)
                 print(result.stdout)
 
                 # Extraction de l'ID du workflow
@@ -505,20 +585,79 @@ Ce script va vous guider à travers les étapes d'installation.
                     
                     # Activation du workflow
                     print("\nActivation du workflow...")
-                    subprocess.run(["gh", "workflow", "enable", workflow_id], check=True)
+                    subprocess.run([gh_cmd, "workflow", "enable", workflow_id, "-R", repo_name], check=True)
                     print("✅ Workflow GitHub Actions activé!")
                     
                     # Lancement du workflow
                     print("\nLancement du workflow...")
-                    subprocess.run(["gh", "workflow", "run", workflow_id], check=True)
+                    subprocess.run([gh_cmd, "workflow", "run", workflow_id, "-R", repo_name], check=True)
                     print("✅ Workflow lancé!")
                 else:
-                    raise ValueError("Workflow 'Update Google Calendar' non trouvé")
+                    print("⚠️ Workflow 'Update Google Calendar' non trouvé")
+                    print("Vérifiez que le fichier .github/workflows existe dans votre dépôt")
+                    
+                    # Proposer de pousser les workflows depuis le dépôt source
+                    push_workflows = input("Voulez-vous copier les workflows depuis le dépôt source? (y/n): ")
+                    if push_workflows.lower() == 'y':
+                        try:
+                            # Cloner temporairement le dépôt source et le fork
+                            temp_dir = Path(tempfile.mkdtemp())
+                            source_dir = temp_dir / "source"
+                            fork_dir = temp_dir / "fork"
+                            
+                            print(f"Clonage du dépôt source dans {source_dir}...")
+                            subprocess.run(["git", "clone", "https://github.com/NayJi7/CyCalendar.git", source_dir], check=True)
+                            
+                            print(f"Clonage de votre fork dans {fork_dir}...")
+                            subprocess.run(["git", "clone", f"https://github.com/{repo_name}.git", fork_dir], check=True)
+                            
+                            # Copier les workflows
+                            source_workflows = source_dir / ".github" / "workflows"
+                            fork_workflows = fork_dir / ".github" / "workflows"
+                            
+                            if source_workflows.exists():
+                                os.makedirs(fork_workflows, exist_ok=True)
+                                for workflow_file in source_workflows.glob("*.yml"):
+                                    shutil.copy2(workflow_file, fork_workflows)
+                                
+                                # Ajouter, commit et pousser
+                                os.chdir(fork_dir)
+                                subprocess.run(["git", "config", "user.name", "GitHub Actions Setup"], check=True)
+                                subprocess.run(["git", "config", "user.email", "noreply@github.com"], check=True)
+                                subprocess.run(["git", "add", ".github/workflows"], check=True)
+                                subprocess.run(["git", "commit", "-m", "Add GitHub Actions workflows from original repo"], check=True)
+                                subprocess.run(["git", "push"], check=True)
+                                
+                                print("✅ Workflows copiés et poussés vers votre fork")
+                                
+                                # Retour au répertoire du projet
+                                os.chdir(self.project_root)
+                                
+                                # Nouvelle tentative de lister et activer le workflow
+                                time.sleep(2)  # Attendre que GitHub détecte les changements
+                                print("\nNouvelle tentative de lister les workflows...")
+                                result = subprocess.run([gh_cmd, "workflow", "list", "-R", repo_name], 
+                                                      capture_output=True, text=True, check=True)
+                                workflows = result.stdout.splitlines()
+                                workflow_line = next((line for line in workflows if "Update Google Calendar" in line), None)
+                                
+                                if workflow_line:
+                                    workflow_id = workflow_line.split()[-1]
+                                    print("\nActivation du workflow...")
+                                    subprocess.run([gh_cmd, "workflow", "enable", workflow_id, "-R", repo_name], check=True)
+                                    print("✅ Workflow GitHub Actions activé!")
+                                    subprocess.run([gh_cmd, "workflow", "run", workflow_id, "-R", repo_name], check=True)
+                                    print("✅ Workflow lancé!")
+                                else:
+                                    print("⚠️ Workflow toujours non trouvé. Veuillez vérifier manuellement.")
+                        except Exception as e:
+                            print(f"❌ Erreur lors de la copie des workflows: {e}")
+                            import traceback
+                            traceback.print_exc()
 
             except subprocess.CalledProcessError as e:
                 print(f"❌ Erreur lors de la configuration du workflow : {e}")
-                import traceback
-                traceback.print_exc()
+                print(f"Détails: {e.stderr}")
             except Exception as e:
                 print(f"❌ Une erreur s'est produite : {e}")
                 import traceback
@@ -531,12 +670,13 @@ Ce script va vous guider à travers les étapes d'installation.
 
         except subprocess.CalledProcessError as e:
             print(f"❌ Erreur lors de l'ajout des secrets: {e}")
+            print(f"Détails: {e.stderr}")
             print("Veuillez résoudre l'erreur affichée ou les ajouter manuellement dans les paramètres de votre repo GitHub")
-            sys.exit(1)
         except Exception as e:
             print(f"❌ Une erreur s'est produite: {e}")
             print("Veuillez résoudre l'erreur affichée ou ajouter les secrets manuellement dans les paramètres de votre repo GitHub")
-            sys.exit(1)
+            import traceback
+            traceback.print_exc()
 
     def print_secret_values_for_manual_setup(self):
         """Affiche les valeurs des secrets pour une configuration manuelle."""

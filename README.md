@@ -77,6 +77,8 @@ Cette catégorie n'est pas utile si vous avez choisi l'utilisation du setup.py p
 
 ## Problèmes possibles
 
+Parfois le programme peut s'arrêter en pleine execution après avoir généré un token. Avant de paniquer et d'abandonner, essayez de relancer le programme tout simplement (surtout durant le setup).	
+
 Le seul token pouvant expirer est le GOOGLE_TOKEN que nous avons générés ensembles. Si celui ci expire vous aurez cette erreur sur github actions :
 
 ![1742893329665](image/README/1742893329665.png)
