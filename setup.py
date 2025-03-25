@@ -17,6 +17,15 @@ class CyCalendarInstaller:
         self.google_dir = self.project_root / 'google'
         self.credentials_path = None
         self.mode = None
+        # Définir les symboles pour les plateformes différentes
+        if self.os_type == "Windows":
+            self.check_mark = "[OK]"
+            self.cross_mark = "[X]"
+            self.warning_mark = "[!]"
+        else:
+            self.check_mark = "✅"
+            self.cross_mark = "❌"
+            self.warning_mark = "⚠️"
         
     def write_log(self, step):
         # Écriture du log
@@ -24,7 +33,7 @@ class CyCalendarInstaller:
             with open(".setup.log", "w") as f:
                 f.write(str(step))
         except Exception as e:
-            print(f"⚠️ Impossible d'écrire dans le fichier .setup.log: {e}")
+            print(f"{self.warning_mark} Impossible d'ecrire dans le fichier .setup.log: {e}")
 
     def display_welcome(self):
         print("""
@@ -49,37 +58,37 @@ Ce script va vous guider à travers les étapes d'installation.
             print("Choix invalide. Veuillez réessayer.")
 
     def install_dependencies(self):
-        print("\n[1/5] Installation des dépendances...")
+        print("\n[1/5] Installation des dependances...")
         
         if self.os_type == "Linux":
-            print("Installation des dépendances Linux...")
+            print("Installation des dependances Linux...")
             try:
                 subprocess.run(["bash", "setup.bash"], check=True)
-                print("✅ Dépendances Linux installées avec succès.")
+                print(f"{self.check_mark} Dependances Linux installees avec succes.")
                 self.write_log(1)
             except subprocess.CalledProcessError:
-                print("⚠️ Erreur lors de l'installation des dépendances Linux.")
-                print("Tentative d'installation manuelle des dépendances Python...")
+                print(f"{self.warning_mark} Erreur lors de l'installation des dependances Linux.")
+                print("Tentative d'installation manuelle des dependances Python...")
                 self.install_python_dependencies()
         
         elif self.os_type == "Windows":
-            print("Installation des dépendances Windows...")
+            print("Installation des dependances Windows...")
             try:
                 subprocess.run(["setup.bat"], shell=True, check=True)
-                print("✅ Dépendances Windows installées avec succès.")
+                print(f"{self.check_mark} Dependances Windows installees avec succes.")
                 self.write_log(1)
             except subprocess.CalledProcessError:
-                print("⚠️ Erreur lors de l'installation des dépendances Windows.")
-                print("Tentative d'installation manuelle des dépendances Python...")
+                print(f"{self.warning_mark} Erreur lors de l'installation des dependances Windows.")
+                print("Tentative d'installation manuelle des dependances Python...")
                 self.install_python_dependencies()
         
         else:
-            print(f"Système d'exploitation non reconnu: {self.os_type}")
-            print("Tentative d'installation des dépendances Python uniquement...")
+            print(f"Systeme d'exploitation non reconnu: {self.os_type}")
+            print("Tentative d'installation des dependances Python uniquement...")
             self.install_python_dependencies()
 
     def install_python_dependencies(self):
-        print("Installation des dépendances Python...")
+        print("Installation des dependances Python...")
         try:
             requirements_path = self.project_root / "requirements.txt"
             if not requirements_path.exists():
@@ -87,9 +96,9 @@ Ce script va vous guider à travers les étapes d'installation.
                     f.write("selenium\nrequests\npython-dotenv\ngoogle-api-python-client\ngoogle-auth-httplib2\ngoogle-auth-oauthlib\npytz\nxvfbwrapper\n")
             
             subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], check=True)
-            print("✅ Dépendances Python installées avec succès.")
+            print(f"{self.check_mark} Dependances Python installees avec succes.")
         except subprocess.CalledProcessError:
-            print("❌ Échec de l'installation des dépendances Python.")
+            print(f"{self.cross_mark} Echec de l'installation des dependances Python.")
             sys.exit(1)
 
     def setup_environment(self):
@@ -104,7 +113,7 @@ Ce script va vous guider à travers les étapes d'installation.
             env_file.write(f"CY_USERNAME={cy_username}\n")
             env_file.write(f"CY_PASSWORD={cy_password}\n")
         
-        print("✅ Fichier .env créé avec succès.")
+        print(f"{self.check_mark} Fichier .env créé avec succès.")
         self.write_log(2)
 
     def setup_google_api(self):
@@ -193,10 +202,10 @@ Ce script va vous guider à travers les étapes d'installation.
                     self.google_dir.mkdir(exist_ok=True)
                     shutil.copy2(latest_file, self.google_dir)
                     self.credentials_path = self.google_dir / latest_file.name
-                    print(f"✅ Fichier copié dans {self.google_dir}")
+                    print(f"{self.check_mark} Fichier copié dans {self.google_dir}")
                     break
                 except PermissionError:
-                    print(f"\n❌ Permission refusée pour copier le fichier de credentials.")
+                    print(f"\n{self.cross_mark} Permission refusée pour copier le fichier de credentials.")
                     manual_path = input("Veuillez entrer manuellement le chemin du fichier: ")
                     self.credentials_path = Path(manual_path)
                     if self.credentials_path.exists():
@@ -228,7 +237,7 @@ Ce script va vous guider à travers les étapes d'installation.
         try:
             # Vérifier si GitHub CLI est déjà installé
             subprocess.run(["gh", "--version"], check=True, capture_output=True)
-            print("✅ GitHub CLI est déjà installé!")
+            print(f"{self.check_mark} GitHub CLI est déjà installé!")
             return
         except (subprocess.CalledProcessError, FileNotFoundError):
             print("Installation de GitHub CLI...")
@@ -245,15 +254,15 @@ Ce script va vous guider à travers les étapes d'installation.
                 elif self.os_type == "Windows":
                     subprocess.run(["winget", "install", "--id", "GitHub.cli"])
                 else:
-                    print(f"⚠️ Installation manuelle requise pour {self.os_type}.")
+                    print(f"{self.warning_mark} Installation manuelle requise pour {self.os_type}.")
                     print("Veuillez installer GitHub CLI depuis: https://cli.github.com/")
                     input("Appuyez sur Entrée une fois que vous avez installé GitHub CLI...")
                 
                 # Vérification de l'installation
                 subprocess.run(["gh", "--version"], check=True)
-                print("✅ GitHub CLI installé avec succès!")
+                print(f"{self.check_mark} GitHub CLI installé avec succès!")
             except subprocess.CalledProcessError:
-                print("❌ Erreur lors de l'installation de GitHub CLI")
+                print(f"{self.cross_mark} Erreur lors de l'installation de GitHub CLI")
                 print("Veuillez l'installer manuellement depuis: https://cli.github.com/")
                 input("Appuyez sur Entrée une fois que vous avez installé GitHub CLI...")
 
@@ -264,7 +273,7 @@ Ce script va vous guider à travers les étapes d'installation.
             
             # Si déjà connecté, récupérer le token
             if "Logged in to" in result.stdout:
-                print("✅ Déjà connecté à GitHub!")
+                print(f"{self.check_mark} Déjà connecté à GitHub!")
                 return subprocess.run(["gh", "auth", "token"], capture_output=True, text=True).stdout.strip()
             
             print("\nOuverture de la page de création de token...")
@@ -286,7 +295,7 @@ Ce script va vous guider à travers les étapes d'installation.
             return token
         
         except subprocess.CalledProcessError as e:
-            print(f"❌ Erreur de connexion : {e}")
+            print(f"{self.cross_mark} Erreur de connexion : {e}")
             sys.exit(1)
 
     def select_repo(self):
@@ -306,7 +315,7 @@ Ce script va vous guider à travers les étapes d'installation.
             if choice == "0":
                 print("Fork automatique du repo CyCalendar...")
                 subprocess.run(["gh", "repo", "fork", "NayJi7/CyCalendar", "--clone=false"], check=True)
-                print("✅ Fork de CyCalendar effectué avec succès!")
+                print(f"{self.check_mark} Fork de CyCalendar effectué avec succès!")
                 # Après le fork, récupérer le nom du repo forké
                 username = subprocess.run(["gh", "api", "user", "-q", ".login"], 
                                       capture_output=True, text=True, check=True).stdout.strip()
@@ -317,16 +326,16 @@ Ce script va vous guider à travers les étapes d'installation.
             return selected_repo
             
         except subprocess.CalledProcessError:
-            print("❌ Impossible de récupérer la liste des dépôts.")
+            print(f"{self.cross_mark} Impossible de récupérer la liste des dépôts.")
             print("Tentative de fork automatique...")
             try:
                 subprocess.run(["gh", "repo", "fork", "NayJi7/CyCalendar", "--clone=false"], check=True)
-                print("✅ Fork de CyCalendar effectué avec succès!")
+                print(f"{self.check_mark} Fork de CyCalendar effectué avec succès!")
                 username = subprocess.run(["gh", "api", "user", "-q", ".login"], 
                                       capture_output=True, text=True, check=True).stdout.strip()
                 return f"{username}/CyCalendar"
             except:
-                print("❌ Échec du fork automatique.")
+                print(f"{self.cross_mark} Échec du fork automatique.")
                 sys.exit(1)
 
     def setup_github_actions(self):
@@ -345,12 +354,12 @@ Ce script va vous guider à travers les étapes d'installation.
         try:
             with open(self.env_path, 'a') as env_file:
                 env_file.write(f"WORKFLOW_PAT={gh_token}\n")
-            print("✅ Token GitHub ajouté au fichier .env")
+            print(f"{self.check_mark} Token GitHub ajouté au fichier .env")
             
             # Mise à jour de la variable d'environnement pour cette session
             os.environ["WORKFLOW_PAT"] = gh_token
         except Exception as e:
-            print(f"⚠️ Erreur lors de l'ajout du token au fichier .env: {e}")
+            print(f"{self.warning_mark} Erreur lors de l'ajout du token au fichier .env: {e}")
         
         # Sélection ou création du dépôt
         repo_name = self.select_repo()
@@ -367,7 +376,7 @@ Ce script va vous guider à travers les étapes d'installation.
             # Récupération des credentials Google
             credentials_files = list(self.google_dir.glob('client_secret_*.apps.googleusercontent.com.json'))
             if not credentials_files:
-                print("❌ Fichier de credentials Google introuvable")
+                print(f"{self.cross_mark} Fichier de credentials Google introuvable")
                 sys.exit(1)
             
             with open(credentials_files[0], 'r') as f:
@@ -377,7 +386,7 @@ Ce script va vous guider à travers les étapes d'installation.
             if not os.path.exists(self.google_dir / "token.pickle"):
                 print("Génération automatique du token Google...")
                 subprocess.run([sys.executable, "cyCalendar.py", "--no-browser"], check=True)
-                print("✅ Token Google généré avec succès")
+                print(f"{self.check_mark} Token Google généré avec succès")
 
             # Lecture du token Google
             with open(self.google_dir / "token.pickle", 'rb') as f:
@@ -396,7 +405,7 @@ Ce script va vous guider à travers les étapes d'installation.
             for secret_name, secret_value in secrets.items():
                 print(f"Ajout du secret {secret_name}...")
                 subprocess.run(["gh", "secret", "set", secret_name, "-b", secret_value], check=True)
-                print(f"✅ Secret {secret_name} ajouté avec succès!")
+                print(f"{self.check_mark} Secret {secret_name} ajouté avec succès!")
 
             # Liste et activation du workflow
             print("\nRécupération de la liste des workflows...")
@@ -414,35 +423,35 @@ Ce script va vous guider à travers les étapes d'installation.
                     # Activation du workflow
                     print("\nActivation du workflow...")
                     subprocess.run(["gh", "workflow", "enable", workflow_id], check=True)
-                    print("✅ Workflow GitHub Actions activé!")
+                    print(f"{self.check_mark} Workflow GitHub Actions activé!")
                     
                     # Lancement du workflow
                     print("\nLancement du workflow...")
                     subprocess.run(["gh", "workflow", "run", workflow_id], check=True)
-                    print("✅ Workflow lancé!")
+                    print(f"{self.check_mark} Workflow lancé!")
                 else:
                     raise ValueError("Workflow 'Update Google Calendar' non trouvé")
 
             except subprocess.CalledProcessError as e:
-                print(f"❌ Erreur lors de la configuration du workflow : {e}")
+                print(f"{self.cross_mark} Erreur lors de la configuration du workflow : {e}")
                 import traceback
                 traceback.print_exc()
             except Exception as e:
-                print(f"❌ Une erreur s'est produite : {e}")
+                print(f"{self.cross_mark} Une erreur s'est produite : {e}")
                 import traceback
                 traceback.print_exc()
 
-            print("\n✅ Configuration de GitHub Actions terminée!")
+            print("\n{self.check_mark} Configuration de GitHub Actions terminée!")
             
             # Écriture du log
             self.write_log(4)
 
         except subprocess.CalledProcessError as e:
-            print(f"❌ Erreur lors de l'ajout des secrets: {e}")
+            print(f"{self.cross_mark} Erreur lors de l'ajout des secrets: {e}")
             print("Veuillez résoudre l'erreur affichée ou les ajouter manuellement dans les paramètres de votre repo GitHub")
             sys.exit(1)
         except Exception as e:
-            print(f"❌ Une erreur s'est produite: {e}")
+            print(f"{self.cross_mark} Une erreur s'est produite: {e}")
             print("Veuillez résoudre l'erreur affichée ou ajouter les secrets manuellement dans les paramètres de votre repo GitHub")
             sys.exit(1)
 
@@ -467,7 +476,7 @@ Ce script va vous guider à travers les étapes d'installation.
             if self.mode > 1 and log < 3:
                 success = self.setup_google_api()
                 if not success:
-                    print("❌ Configuration de l'API Google Calendar échouée.")
+                    print(f"{self.cross_mark} Configuration de l'API Google Calendar échouée.")
                     return
             
             if self.mode == 3 and log < 4:
@@ -489,9 +498,9 @@ Ce script va vous guider à travers les étapes d'installation.
                 print("GitHub Actions mettra automatiquement à jour votre calendrier chaque jour à une heure aléatoire entre 18h et 20h.")
                 
         except KeyboardInterrupt:
-            print("\n\nInstallation annulée par l'utilisateur.")
+            print("\n\nInstallation annulee par l'utilisateur.")
         except Exception as e:
-            print(f"\n❌ Une erreur s'est produite: {str(e)}")
+            print(f"\n{self.cross_mark} Une erreur s'est produite: {str(e)}")
             import traceback
             traceback.print_exc()
 
