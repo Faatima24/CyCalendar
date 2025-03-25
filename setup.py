@@ -51,7 +51,7 @@ Ce script va vous guider à travers les étapes d'installation.
         print("3. Mode Automatique et périodique (mises à jour périodiques avec GitHub Actions)")
         
         while True:
-            choice = read_input("\nVotre choix (1/2/3): ")
+            choice = input("\nVotre choix (1/2/3): ")
             if choice in ["1", "2", "3"]:
                 self.mode = int(choice)
                 return
@@ -104,19 +104,22 @@ Ce script va vous guider à travers les étapes d'installation.
     def setup_environment(self):
         print("\n[2/5] Configuration du fichier .env...")
         
-        # Utiliser notre fonction d'entrée personnalisée
+        # Demander les informations d'identification CY Tech avec une meilleure gestion sous Windows
         cy_username = ""
         while not cy_username:
-            cy_username = read_input("Entrez votre identifiant CY Tech (e-1erelettreprenom+nom): ")
+            cy_username = input("Entrez votre identifiant CY Tech (e-1erelettreprenom+nom): ")
             if not cy_username:
                 print("Identifiant vide, veuillez réessayer.")
         
-        # Utiliser getpass avec un fallback sur notre fonction sécurisée
-        try:
+        # Pour Windows, utiliser getpass.win_getpass si disponible ou fallback sur input si nécessaire
+        if self.os_type == "Windows":
+            try:
+                cy_password = getpass.getpass("Entrez votre mot de passe CY Tech: ")
+            except Exception:
+                print("La saisie sécurisée n'est pas disponible, veuillez entrer votre mot de passe:")
+                cy_password = input("Mot de passe (attention: visible à l'écran): ")
+        else:
             cy_password = getpass.getpass("Entrez votre mot de passe CY Tech: ")
-        except Exception:
-            print("La saisie sécurisée n'est pas disponible.")
-            cy_password = read_input("Mot de passe (attention: visible à l'écran): ")
         
         # Créer le fichier .env
         with open(self.env_path, 'w') as env_file:
@@ -138,7 +141,7 @@ Ce script va vous guider à travers les étapes d'installation.
 
         if credentials_files:
             print(f"Fichier de credentials trouvé : {credentials_files[0]}")
-            choice = read_input("Voulez-vous utiliser ce fichier ? (y/n): ")
+            choice = input("Voulez-vous utiliser ce fichier ? (y/n): ")
             if choice.lower() == 'y':
                 self.credentials_path = credentials_files[0]
                 self.write_log(3)
@@ -216,7 +219,7 @@ Ce script va vous guider à travers les étapes d'installation.
                     break
                 except PermissionError:
                     print(f"\n{self.cross_mark} Permission refusée pour copier le fichier de credentials.")
-                    manual_path = read_input("Veuillez entrer manuellement le chemin du fichier: ")
+                    manual_path = input("Veuillez entrer manuellement le chemin du fichier: ")
                     self.credentials_path = Path(manual_path)
                     if self.credentials_path.exists():
                         shutil.copy(self.credentials_path, self.google_dir)
@@ -230,7 +233,7 @@ Ce script va vous guider à travers les étapes d'installation.
         # Si le fichier n'a pas été trouvé automatiquement, demander le chemin
         if not self.credentials_path:
             while True:
-                manual_path = Path(read_input("Entrez le chemin du fichier de credentials téléchargé: "))
+                manual_path = Path(input("Entrez le chemin du fichier de credentials téléchargé: "))
                 if "client_secret_" in manual_path.name and ".apps.googleusercontent.com.json" in manual_path.name:
                     self.google_dir.mkdir(exist_ok=True) 
                     shutil.copy(manual_path, self.google_dir)
@@ -266,7 +269,7 @@ Ce script va vous guider à travers les étapes d'installation.
                 else:
                     print(f"{self.warning_mark} Installation manuelle requise pour {self.os_type}.")
                     print("Veuillez installer GitHub CLI depuis: https://cli.github.com/")
-                    read_input("Appuyez sur Entrée une fois que vous avez installé GitHub CLI...")
+                    input("Appuyez sur Entrée une fois que vous avez installé GitHub CLI...")
                 
                 # Vérification de l'installation
                 subprocess.run(["gh", "--version"], check=True)
@@ -274,7 +277,7 @@ Ce script va vous guider à travers les étapes d'installation.
             except subprocess.CalledProcessError:
                 print(f"{self.cross_mark} Erreur lors de l'installation de GitHub CLI")
                 print("Veuillez l'installer manuellement depuis: https://cli.github.com/")
-                read_input("Appuyez sur Entrée une fois que vous avez installé GitHub CLI...")
+                input("Appuyez sur Entrée une fois que vous avez installé GitHub CLI...")
 
     def github_login(self):
         try:
@@ -295,7 +298,7 @@ Ce script va vous guider à travers les étapes d'installation.
             time.sleep(3)
             webbrowser.open("https://github.com/settings/personal-access-tokens/new")
             
-            token = read_input("\nCollez votre Personal Access Token : ")
+            token = input("\nCollez votre Personal Access Token : ")
             
             # Connexion avec le token
             subprocess.run(["gh", "auth", "login", "--with-token"], 
@@ -320,7 +323,7 @@ Ce script va vous guider à travers les étapes d'installation.
             for i, repo in enumerate(repos, 1):
                 print(f"{i}. {repo}")
             
-            choice = read_input("Sélectionnez votre fork de CyCalendar (ou 0 pour fork automatique) : ")
+            choice = input("Sélectionnez votre fork de CyCalendar (ou 0 pour fork automatique) : ")
             
             if choice == "0":
                 print("Fork automatique du repo CyCalendar...")
@@ -471,7 +474,7 @@ Ce script va vous guider à travers les étapes d'installation.
                 with open(".setup.log", "r") as f:
                     log = f.read()
                     log = int(log)
-                    choice = read_input("Une installation précédente a été détectée. Souhaitez-vous reprendre cette installation ? (y/n): ")
+                    choice = input("Une installation précédente a été détectée. Souhaitez-vous reprendre cette installation ? (y/n): ")
                     if choice.lower() != 'y':
                         log = 0
             except FileNotFoundError:
@@ -513,33 +516,6 @@ Ce script va vous guider à travers les étapes d'installation.
             print(f"\n{self.cross_mark} Une erreur s'est produite: {str(e)}")
             import traceback
             traceback.print_exc()
-
-def read_input(prompt):
-    """
-    Fonction utilitaire pour lire l'entrée utilisateur de manière fiable sur tous les systèmes
-    """
-    while True:
-        try:
-            print(prompt, end='', flush=True)
-            value = sys.stdin.readline().strip()
-            return value
-        except Exception:
-            # En cas d'erreur, essayer une autre méthode
-            try:
-                import msvcrt
-                print(prompt, end='', flush=True)
-                value = ""
-                while True:
-                    char = msvcrt.getch().decode()
-                    if char == '\r':  # Entrée
-                        print()
-                        break
-                    print(char, end='', flush=True)
-                    value += char
-                return value
-            except (ImportError, Exception):
-                # Si msvcrt n'est pas disponible ou échoue
-                return input(prompt)
 
 if __name__ == "__main__":
     installer = CyCalendarInstaller()
