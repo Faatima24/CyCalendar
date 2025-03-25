@@ -5,19 +5,23 @@ import getpass
 import base64
 import time
 import shutil
-import random
+import os
 import webbrowser
 from pathlib import Path
 from urllib.parse import urlparse
+import tempfile
+import urllib.request
 
 class CyCalendarInstaller:
     def __init__(self):
         self.os_type = platform.system()
+        self.platform = self.os_type.lower()  # Conversion en minuscule pour faciliter les comparaisons
         self.project_root = Path.cwd()
         self.env_path = self.project_root / '.env'
         self.google_dir = self.project_root / 'google'
         self.credentials_path = None
         self.mode = None
+        self.temp_dir = tempfile.gettempdir()  # Répertoire temporaire pour les téléchargements
         
     def write_log(self, step):
         # Écriture du log
@@ -231,6 +235,28 @@ Ce script va vous guider à travers les étapes d'installation.
         
         return True
 
+    def download_file(self, url, destination):
+        """Télécharge un fichier depuis une URL vers une destination spécifiée."""
+        try:
+            print(f"Téléchargement de {url}...")
+            
+            # Créer un affichage de progression simple
+            def report_progress(block_num, block_size, total_size):
+                downloaded = block_num * block_size
+                if total_size > 0:
+                    percent = min(int(downloaded * 100 / total_size), 100)
+                    progress_bar = '█' * int(percent / 2)
+                    print(f"\r  {progress_bar.ljust(50)} {downloaded / 1024 / 1024:.1f} MB / {total_size / 1024 / 1024:.1f} MB", end='', flush=True)
+            
+            # Télécharger le fichier avec affichage de la progression
+            urllib.request.urlretrieve(url, destination, reporthook=report_progress)
+            print()  # Nouvelle ligne après la barre de progression
+            
+            return True
+        except Exception as e:
+            print(f"\n❌ Erreur lors du téléchargement du fichier: {e}")
+            return False
+
     def install_gh_cli(self):
         """Install GitHub CLI if not already installed."""
         try:
@@ -247,7 +273,10 @@ Ce script va vous guider à travers les étapes d'installation.
                 
                 # Téléchargement du MSI
                 print("Téléchargement en cours", msi_url)
-                self.download_file(msi_url, msi_file)
+                success = self.download_file(msi_url, msi_file)
+                if not success:
+                    print("❌ Échec du téléchargement de GitHub CLI")
+                    return None
                 
                 # Vérification du hash (optionnel)
                 print("Le code de hachage de l'installation a été vérifié avec succès")
@@ -283,6 +312,29 @@ Ce script va vous guider à travers les étapes d'installation.
                 
                 print("⚠️ GitHub CLI a été installé mais ne peut pas être trouvé dans le PATH.")
                 print("Vous devrez peut-être redémarrer votre session ou votre ordinateur pour l'utiliser.")
+                return None
+            elif self.platform == "linux":
+                # Installation via apt pour les systèmes basés sur Debian
+                try:
+                    print("Installation de GitHub CLI via apt...")
+                    subprocess.run(["sudo", "apt", "update"], check=True)
+                    subprocess.run(["sudo", "apt", "install", "gh", "-y"], check=True)
+                    print("✅ GitHub CLI installé avec succès!")
+                    return "gh"
+                except subprocess.CalledProcessError:
+                    print("❌ Échec de l'installation via apt")
+                    return None
+            elif self.platform == "darwin":  # macOS
+                try:
+                    print("Installation de GitHub CLI via brew...")
+                    subprocess.run(["brew", "install", "gh"], check=True)
+                    print("✅ GitHub CLI installé avec succès!")
+                    return "gh"
+                except subprocess.CalledProcessError:
+                    print("❌ Échec de l'installation via brew")
+                    return None
+            else:
+                print(f"❌ Système d'exploitation non pris en charge pour l'installation automatique de GitHub CLI: {self.platform}")
                 return None
 
     def github_login(self):
