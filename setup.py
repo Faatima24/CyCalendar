@@ -104,9 +104,22 @@ Ce script va vous guider à travers les étapes d'installation.
     def setup_environment(self):
         print("\n[2/5] Configuration du fichier .env...")
         
-        # Demander les informations d'identification CY Tech
-        cy_username = input("Entrez votre identifiant CY Tech (e-1erelettreprenom+nom): ")
-        cy_password = getpass.getpass("Entrez votre mot de passe CY Tech: ")
+        # Demander les informations d'identification CY Tech avec une meilleure gestion sous Windows
+        cy_username = ""
+        while not cy_username:
+            cy_username = input("Entrez votre identifiant CY Tech (e-1erelettreprenom+nom): ")
+            if not cy_username:
+                print("Identifiant vide, veuillez réessayer.")
+        
+        # Pour Windows, utiliser getpass.win_getpass si disponible ou fallback sur input si nécessaire
+        if self.os_type == "Windows":
+            try:
+                cy_password = getpass.getpass("Entrez votre mot de passe CY Tech: ")
+            except Exception:
+                print("La saisie sécurisée n'est pas disponible, veuillez entrer votre mot de passe:")
+                cy_password = input("Mot de passe (attention: visible à l'écran): ")
+        else:
+            cy_password = getpass.getpass("Entrez votre mot de passe CY Tech: ")
         
         # Créer le fichier .env
         with open(self.env_path, 'w') as env_file:

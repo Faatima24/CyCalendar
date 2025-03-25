@@ -9,6 +9,7 @@ echo.
 echo Installation des dependances Python...
 echo Cette operation peut prendre plusieurs minutes selon votre connexion internet
 pip install --upgrade pip
+pip install colorama
 pip install -r requirements.txt
 
 echo.
@@ -18,3 +19,5 @@ if not exist generated mkdir generated
 
 echo.
 echo Installation terminee !
+set PYTHONIOENCODING=utf-8
+echo Lancement du script principal...
