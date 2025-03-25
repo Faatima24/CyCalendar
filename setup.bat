@@ -17,4 +17,3 @@ if not exist generated mkdir generated
 
 echo.
 echo Installation terminée !
-pause
