@@ -267,10 +267,6 @@ Ce script va vous guider à travers les étapes d'installation.
         except (subprocess.CalledProcessError, FileNotFoundError):
             if self.platform == "windows":
                 print("\n⚠️ GitHub CLI n'est pas détecté sur votre système.")
-                print("Veuillez l'installer manuellement en suivant ces étapes:")
-                print("1. Ouvrez un navigateur et visitez: https://cli.github.com/")
-                print("2. Téléchargez et installez GitHub CLI")
-                print("3. Après l'installation, redémarrez ce script ou votre terminal")
                 
                 # Recherche gh.exe dans les emplacements courants
                 possible_locations = [
@@ -293,6 +289,10 @@ Ce script va vous guider à travers les étapes d'installation.
                             return gh_exe
                 
                 # Aucune installation trouvée, demander à l'utilisateur
+                print("Veuillez l'installer manuellement en suivant ces étapes:")
+                print("1. Ouvrez un navigateur et visitez: https://cli.github.com/")
+                print("2. Téléchargez et installez GitHub CLI")
+                print("3. Après l'installation, redémarrez ce script ou votre terminal\n")
                 print("\nVoulez-vous continuer sans GitHub CLI? (y/n)")
                 choice = input("Si vous continuez, vous devrez configurer GitHub Actions manuellement: ")
                 if choice.lower() == 'y':
